@@ -10,12 +10,13 @@ import com.badlogic.gdx.assets.AssetManager;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.mygdx.vampiresurvivors.VampireSurvivors;
+import com.mygdx.vampiresurvivors.ecs.component.BoundsComponent;
 import com.mygdx.vampiresurvivors.ecs.component.PositionComponent;
 import com.mygdx.vampiresurvivors.ecs.component.TextureComponent;
 import com.mygdx.vampiresurvivors.ecs.component.VelocityComponent;
+import com.mygdx.vampiresurvivors.ecs.system.BounceInBoundsSystem;
 import com.mygdx.vampiresurvivors.ecs.system.MovementSystem;
 import com.mygdx.vampiresurvivors.ecs.system.RenderingSystem;
 
@@ -40,6 +41,10 @@ public class GameScreen extends ScreenAdapter {
     img = assetManager.get("badlogic.jpg", Texture.class);
     final Entity entity = engine.createEntity();
 
+    final BoundsComponent boundsComponent = engine.createComponent(BoundsComponent.class);
+    boundsComponent.width = img.getWidth() / 16f;
+    boundsComponent.height = img.getHeight() / 16f;
+
     final PositionComponent positionComponent = engine.createComponent(PositionComponent.class);
     positionComponent.position.set(0, 0);
 
@@ -50,6 +55,7 @@ public class GameScreen extends ScreenAdapter {
     velocityComponent.speed = 10;
     velocityComponent.velocity.set(1, 1);
 
+    entity.add(boundsComponent);
     entity.add(positionComponent);
     entity.add(textureComponent);
     entity.add(velocityComponent);
@@ -58,8 +64,9 @@ public class GameScreen extends ScreenAdapter {
 
     engine.addEntity(entity);
 
-    engine.addSystem(new RenderingSystem(batch, (OrthographicCamera) viewport.getCamera()));
+    engine.addSystem(new BounceInBoundsSystem(viewport.getWorldWidth(), viewport.getWorldHeight()));
     engine.addSystem(new MovementSystem());
+    engine.addSystem(new RenderingSystem(batch, (OrthographicCamera) viewport.getCamera()));
   }
 
   private void update(final float delta) {

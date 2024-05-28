@@ -4,28 +4,33 @@ import com.badlogic.ashley.core.ComponentMapper;
 import com.badlogic.ashley.core.Entity;
 import com.badlogic.ashley.core.Family;
 import com.badlogic.ashley.systems.SortedIteratingSystem;
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.utils.Array;
 import com.mygdx.vampiresurvivors.ecs.Mappers;
-import com.mygdx.vampiresurvivors.ecs.component.PositionComponent;
+import com.mygdx.vampiresurvivors.ecs.component.TransformComponent;
 import com.mygdx.vampiresurvivors.ecs.component.TextureComponent;
 
 import java.util.Comparator;
 
 public class RenderingSystem extends SortedIteratingSystem {
 
+  private static final float SCALE = 1/8f;
+
   private final SpriteBatch batch;
   private final OrthographicCamera camera;
   private final Array<Entity> renderQueue;
 
   public RenderingSystem(final SpriteBatch batch, final OrthographicCamera camera) {
-    super(Family.all(PositionComponent.class, TextureComponent.class).get(), new ZComparator());
+    super(Family.all(TransformComponent.class, TextureComponent.class).get(), new ZComparator());
 
     renderQueue = new Array<>();
 
     this.batch = batch;
     this.camera = camera;
+
+    Gdx.app.log("RenderingSystem", "Camera position: " + camera.position);
   }
 
   @Override
@@ -37,19 +42,21 @@ public class RenderingSystem extends SortedIteratingSystem {
     batch.begin();
 
     for (final Entity entity : new Array.ArrayIterable<>(renderQueue)) {
-      final PositionComponent positionComponent = Mappers.position.get(entity);
+      final TransformComponent transformComponent = Mappers.position.get(entity);
       final TextureComponent textureComponent = Mappers.texture.get(entity);
 
-      // Draw the texture scaled down by 10
-      batch.draw(textureComponent.texture,
-          positionComponent.position.x, positionComponent.position.y,
+      final float width = textureComponent.texture.getRegionWidth();
+      final float height = textureComponent.texture.getRegionHeight();
+
+      Gdx.app.log("RenderingSystem", "Entity size " + width + "x" + height);
+
+      batch.draw(
+          textureComponent.texture,
+          transformComponent.position.x, transformComponent.position.y,
           0, 0,
-          textureComponent.texture.getWidth(), textureComponent.texture.getHeight(),
-          1/16f, 1/16f,
-          0,
-          0, 0,
-          textureComponent.texture.getWidth(), textureComponent.texture.getHeight(),
-          false, false
+          width, height,
+          transformComponent.scale.x * SCALE, transformComponent.scale.y * SCALE,
+          transformComponent.rotation
       );
     }
 

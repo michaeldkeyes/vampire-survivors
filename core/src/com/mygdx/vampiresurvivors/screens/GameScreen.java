@@ -10,68 +10,85 @@ import com.badlogic.gdx.assets.AssetManager;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.math.RandomXS128;
 import com.badlogic.gdx.utils.viewport.Viewport;
+import com.mygdx.vampiresurvivors.Assets;
 import com.mygdx.vampiresurvivors.VampireSurvivors;
-import com.mygdx.vampiresurvivors.ecs.component.BoundsComponent;
-import com.mygdx.vampiresurvivors.ecs.component.PositionComponent;
-import com.mygdx.vampiresurvivors.ecs.component.TextureComponent;
-import com.mygdx.vampiresurvivors.ecs.component.VelocityComponent;
-import com.mygdx.vampiresurvivors.ecs.system.BounceInBoundsSystem;
+import com.mygdx.vampiresurvivors.ecs.component.*;
 import com.mygdx.vampiresurvivors.ecs.system.MovementSystem;
+import com.mygdx.vampiresurvivors.ecs.system.PlayerSystem;
 import com.mygdx.vampiresurvivors.ecs.system.RenderingSystem;
 
 public class GameScreen extends ScreenAdapter {
 
-  private final AssetManager assetManager;
   private final Engine engine;
-  private final SpriteBatch batch;
-  private final Viewport viewport;
 
-  private final Texture img;
+  private final Assets assets;
+  private final RandomXS128 random;
 
   public GameScreen(final VampireSurvivors context) {
-    this.assetManager = context.getAssetManager();
+    assets = context.getAssetManager();
     engine = new PooledEngine();
-    this.batch = context.getBatch();
-    this.viewport = context.getViewport();
+    random = new RandomXS128();
+    final SpriteBatch batch = context.getBatch();
+    final Viewport viewport = context.getViewport();
 
-    assetManager.load("badlogic.jpg", Texture.class);
-    assetManager.finishLoading();
+    assets.load();
 
-    img = assetManager.get("badlogic.jpg", Texture.class);
-    final Entity entity = engine.createEntity();
+    final Entity player = createPlayer();
 
-    final BoundsComponent boundsComponent = engine.createComponent(BoundsComponent.class);
-    boundsComponent.width = img.getWidth() / 16f;
-    boundsComponent.height = img.getHeight() / 16f;
+    for (int i = 0; i < 6; i++) {
+      final Entity entity = engine.createEntity();
 
-    final PositionComponent positionComponent = engine.createComponent(PositionComponent.class);
-    positionComponent.position.set(0, 0);
+      final BoundsComponent boundsComponent = engine.createComponent(BoundsComponent.class);
+      boundsComponent.bounds.width = 256;
+      boundsComponent.bounds.height = 256;
 
-    final TextureComponent textureComponent = engine.createComponent(TextureComponent.class);
-    textureComponent.texture = img;
+      final TransformComponent transformComponent = engine.createComponent(TransformComponent.class);
+      transformComponent.position.set(random.nextInt(1280), random.nextInt(720));
+      transformComponent.scale.set(32, 32);
 
-    final VelocityComponent velocityComponent = engine.createComponent(VelocityComponent.class);
-    velocityComponent.speed = 10;
-    velocityComponent.velocity.set(1, 1);
+      final TextureComponent textureComponent = engine.createComponent(TextureComponent.class);
+      textureComponent.texture = new TextureRegion(assets.get(Assets.COLLISIONTESTER));
 
-    entity.add(boundsComponent);
-    entity.add(positionComponent);
-    entity.add(textureComponent);
-    entity.add(velocityComponent);
+      entity.add(boundsComponent);
+      entity.add(transformComponent);
+      entity.add(textureComponent);
 
-    Gdx.app.log("GameScreen", "Adding entity with position " + positionComponent.position + " and velocity " + velocityComponent.velocity);
+      engine.addEntity(entity);
+    }
 
-    engine.addEntity(entity);
+    engine.addEntity(player);
 
-    engine.addSystem(new BounceInBoundsSystem(viewport.getWorldWidth(), viewport.getWorldHeight()));
     engine.addSystem(new MovementSystem());
+    engine.addSystem(new PlayerSystem());
     engine.addSystem(new RenderingSystem(batch, (OrthographicCamera) viewport.getCamera()));
   }
 
   private void update(final float delta) {
     if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
       Gdx.app.exit();
+    }
+
+    final PlayerSystem playerSystem = engine.getSystem(PlayerSystem.class);
+
+    playerSystem.setVelocity(0, 0);
+
+    if (Gdx.input.isKeyPressed(Input.Keys.W)) {
+      playerSystem.setVelocityY(1);
+    }
+
+    if (Gdx.input.isKeyPressed(Input.Keys.S)) {
+      playerSystem.setVelocityY(-1);
+    }
+
+    if (Gdx.input.isKeyPressed(Input.Keys.A)) {
+      playerSystem.setVelocityX(-1);
+    }
+
+    if (Gdx.input.isKeyPressed(Input.Keys.D)) {
+      playerSystem.setVelocityX(1);
     }
 
     engine.update(delta);
@@ -81,5 +98,33 @@ public class GameScreen extends ScreenAdapter {
   public void render(final float delta) {
     update(delta);
 
+  }
+
+  private Entity createPlayer() {
+    final Texture img = assets.get(Assets.PLAYER);
+    final Entity entity = engine.createEntity();
+
+    final BoundsComponent boundsComponent = engine.createComponent(BoundsComponent.class);
+    boundsComponent.bounds.width = PlayerComponent.WIDTH;
+    boundsComponent.bounds.height = PlayerComponent.HEIGHT;
+
+    final PlayerComponent playerComponent = engine.createComponent(PlayerComponent.class);
+
+    final TransformComponent transformComponent = engine.createComponent(TransformComponent.class);
+    transformComponent.position.set(400, 300);
+
+    final TextureComponent textureComponent = engine.createComponent(TextureComponent.class);
+    textureComponent.texture = new TextureRegion(img);
+
+    final VelocityComponent velocityComponent = engine.createComponent(VelocityComponent.class);
+    velocityComponent.speed = PlayerComponent.SPEED;
+
+    entity.add(boundsComponent);
+    entity.add(playerComponent);
+    entity.add(transformComponent);
+    entity.add(textureComponent);
+    entity.add(velocityComponent);
+
+    return entity;
   }
 }
